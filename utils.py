@@ -129,10 +129,12 @@ def prepare_folders(args):
         else:
             if ('stage1' in args.store_name) and (args.store_name in folder):
                 if folder[-2] == '.':
+                    print('------------', folder)
                     folder += '_1'
                 else:
-                    num = (int)(folder.pop()) + 1
-                    folder += (str)(num)
+                    print(folder)
+                    num = (int)(folder[-1]) + 1
+                    folder[-1] += (str)(num)
 
                 os.mkdir(folder)
                 print('creating folder ' + folder)
