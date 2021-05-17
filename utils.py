@@ -134,7 +134,7 @@ def prepare_folders(args):
                 else:
                     print(folder)
                     num = (int)(folder[-1]) + 1
-                    folder[-1] += (str)(num)
+                    folder[-1] = (str)(num)
 
                 os.mkdir(folder)
                 print('creating folder ' + folder)
