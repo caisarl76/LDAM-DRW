@@ -131,10 +131,10 @@ def prepare_folders(args):
                 if folder[-2] == '.':
                     print('------------', folder)
                     folder += '_1'
-                else:
-                    print(folder)
-                    num = (int)(folder[-1]) + 1
-                    folder[-1] = (str)(num)
+                    if os.path.exists(folder):
+                        print(folder)
+                        num = (int)(folder[-1]) + 1
+                        folder[-1] = (str)(num)
 
                 os.mkdir(folder)
                 print('creating folder ' + folder)
