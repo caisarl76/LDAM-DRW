@@ -68,13 +68,15 @@ parser.add_argument('--gpu', default=None, type=int,
                     help='GPU id to use.')
 parser.add_argument('--root_log', type=str, default='log')
 parser.add_argument('--root_model', type=str, default='checkpoint')
+parser.add_argument('--switch-prob', type=float, default=0.1)
 best_acc1 = 0
 
 
 def main():
     args = parser.parse_args()
     args.store_name = '_'.join(
-        [args.dataset, args.arch, args.loss_type, args.train_rule, args.imb_type, str(args.imb_factor), args.exp_str])
+        ['stage1/', args.dataset, args.arch, args.loss_type, args.train_rule, args.imb_type, str(args.imb_factor),
+         args.exp_str, (str)(args.switch_prob)])
     prepare_folders(args)
     if args.seed is not None:
         random.seed(args.seed)
@@ -169,6 +171,20 @@ def main_worker(gpu, ngpus_per_node, args):
     print(cls_num_list)
     args.cls_num_list = cls_num_list
 
+    cf_name = '_'.join(
+        [args.dataset, args.arch, args.loss_type, args.train_rule, args.imb_type, str(args.imb_factor), args.exp_str])
+
+    f_name = os.path.join('./data', cf_name) + '.npy'
+    print(f_name)
+    with open(f_name, 'rb') as f:
+        cf_mat = np.load((f.name))
+
+    dat_len = len(cf_mat[0])
+    max_idx = int(dat_len * 0.7)
+
+    cf_mat = cf_mat[max_idx:, max_idx:]
+    cf_mat = np.argmax(cf_mat, axis=1)
+    cf_mat = cf_mat + max_idx
     train_sampler = None
 
     train_loader = torch.utils.data.DataLoader(
@@ -187,43 +203,10 @@ def main_worker(gpu, ngpus_per_node, args):
     tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name))
     for epoch in range(args.start_epoch, args.epochs):
         adjust_learning_rate(optimizer, epoch, args)
-
-        if args.train_rule == 'None':
-            train_sampler = None
-            per_cls_weights = None
-        elif args.train_rule == 'Resample':
-            train_sampler = ImbalancedDatasetSampler(train_dataset)
-            per_cls_weights = None
-        elif args.train_rule == 'Reweight':
-            train_sampler = None
-            beta = 0.9999
-            effective_num = 1.0 - np.power(beta, cls_num_list)
-            per_cls_weights = (1.0 - beta) / np.array(effective_num)
-            per_cls_weights = per_cls_weights / np.sum(per_cls_weights) * len(cls_num_list)
-            per_cls_weights = torch.FloatTensor(per_cls_weights).cuda(args.gpu)
-        elif args.train_rule == 'DRW':
-            train_sampler = None
-            idx = epoch // 160
-            betas = [0, 0.9999]
-            effective_num = 1.0 - np.power(betas[idx], cls_num_list)
-            per_cls_weights = (1.0 - betas[idx]) / np.array(effective_num)
-            per_cls_weights = per_cls_weights / np.sum(per_cls_weights) * len(cls_num_list)
-            per_cls_weights = torch.FloatTensor(per_cls_weights).cuda(args.gpu)
-        else:
-            warnings.warn('Sample rule is not listed')
-
-        if args.loss_type == 'CE':
-            criterion = nn.CrossEntropyLoss(weight=per_cls_weights).cuda(args.gpu)
-        elif args.loss_type == 'LDAM':
-            criterion = LDAMLoss(cls_num_list=cls_num_list, max_m=0.5, s=30, weight=per_cls_weights).cuda(args.gpu)
-        elif args.loss_type == 'Focal':
-            criterion = FocalLoss(weight=per_cls_weights, gamma=1).cuda(args.gpu)
-        else:
-            warnings.warn('Loss type is not listed')
-            return
+        criterion = nn.CrossEntropyLoss(weight=None).cuda(args.gpu)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch, args, log_training, tf_writer)
+        train(train_loader, model, criterion, optimizer, epoch, args, log_training, tf_writer, cf_mat)
 
         # evaluate on validation set
         acc1 = validate(val_loader, model, criterion, epoch, args, log_testing, tf_writer)
@@ -247,7 +230,7 @@ def main_worker(gpu, ngpus_per_node, args):
         }, is_best)
 
 
-def train(train_loader, model, criterion, optimizer, epoch, args, log, tf_writer):
+def train(train_loader, model, criterion, optimizer, epoch, args, log, tf_writer, cf_mat):
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
@@ -258,12 +241,23 @@ def train(train_loader, model, criterion, optimizer, epoch, args, log, tf_writer
     model.train()
 
     end = time.time()
+
+    max_idx = len(cf_mat)
+
     for i, (input, target) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
 
         if args.gpu is not None:
             input = input.cuda(args.gpu, non_blocking=True)
+
+        # print(target)
+        for i in range(max_idx):
+            if random.random() < args.switch_prob:
+                target[target == i] = torch.tensor(cf_mat[i], dtype=torch.long)
+        # print(target)
+
+
         target = target.cuda(args.gpu, non_blocking=True)
 
         # compute output
@@ -356,7 +350,7 @@ def validate(val_loader, model, criterion, epoch, args, log=None, tf_writer=None
         output = ('{flag} Results: Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f} Loss {loss.avg:.5f}'
                   .format(flag=flag, top1=top1, top5=top5, loss=losses))
         out_cls_acc = '%s Class Accuracy: %s' % (
-        flag, (np.array2string(cls_acc, separator=',', formatter={'float_kind': lambda x: "%.3f" % x})))
+            flag, (np.array2string(cls_acc, separator=',', formatter={'float_kind': lambda x: "%.3f" % x})))
         print(output)
         print(out_cls_acc)
         if log is not None:

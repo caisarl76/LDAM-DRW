@@ -3,31 +3,32 @@ import shutil
 import os
 import numpy as np
 import matplotlib
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 from sklearn.utils.multiclass import unique_labels
 
+
 class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
 
     def __init__(self, dataset, indices=None, num_samples=None):
-                
-        # if indices is not provided, 
+        # if indices is not provided,
         # all elements in the dataset will be considered
         self.indices = list(range(len(dataset))) \
             if indices is None else indices
-            
-        # if num_samples is not provided, 
+
+        # if num_samples is not provided,
         # draw `len(indices)` samples in each iteration
         self.num_samples = len(self.indices) \
             if num_samples is None else num_samples
-            
-        # distribution of classes in the dataset 
+
+        # distribution of classes in the dataset
         label_to_count = [0] * len(np.unique(dataset.targets))
         for idx in self.indices:
             label = self._get_label(dataset, idx)
             label_to_count[label] += 1
-            
+
         beta = 0.9999
         effective_num = 1.0 - np.power(beta, label_to_count)
         per_cls_weights = (1.0 - beta) / np.array(effective_num)
@@ -36,18 +37,18 @@ class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
         weights = [per_cls_weights[self._get_label(dataset, idx)]
                    for idx in self.indices]
         self.weights = torch.DoubleTensor(weights)
-        
+
     def _get_label(self, dataset, idx):
         return dataset.targets[idx]
-                
+
     def __iter__(self):
         return iter(torch.multinomial(self.weights, self.num_samples, replacement=True).tolist())
 
     def __len__(self):
         return self.num_samples
 
+
 def calc_confusion_mat(val_loader, model, args):
-    
     model.eval()
     all_preds = []
     all_targets = []
@@ -75,11 +76,11 @@ def calc_confusion_mat(val_loader, model, args):
     plot_confusion_matrix(all_targets, all_preds, classes)
     plt.savefig(os.path.join(args.root_log, args.store_name, 'confusion_matrix.png'))
 
+
 def plot_confusion_matrix(y_true, y_pred, classes,
                           normalize=False,
                           title=None,
                           cmap=plt.cm.Blues):
-    
     if not title:
         if normalize:
             title = 'Normalized confusion matrix'
@@ -88,7 +89,7 @@ def plot_confusion_matrix(y_true, y_pred, classes,
 
     # Compute confusion matrix
     cm = confusion_matrix(y_true, y_pred)
-    
+
     fig, ax = plt.subplots()
     im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
     ax.figure.colorbar(im, ax=ax)
@@ -116,8 +117,8 @@ def plot_confusion_matrix(y_true, y_pred, classes,
     fig.tight_layout()
     return ax
 
+
 def prepare_folders(args):
-    
     folders_util = [args.root_log, args.root_model,
                     os.path.join(args.root_log, args.store_name),
                     os.path.join(args.root_model, args.store_name)]
@@ -125,9 +126,19 @@ def prepare_folders(args):
         if not os.path.exists(folder):
             print('creating folder ' + folder)
             os.mkdir(folder)
+        else:
+            if ('stage1' in args.store_name) and (args.store_name in folder):
+                if folder[-2] == '.':
+                    folder += '_1'
+                else:
+                    num = (int)(folder.pop()) + 1
+                    folder += (str)(num)
+
+                os.mkdir(folder)
+                print('creating folder ' + folder)
+
 
 def save_checkpoint(args, state, is_best):
-    
     filename = '%s/%s/ckpt.pth.tar' % (args.root_model, args.store_name)
     torch.save(state, filename)
     if is_best:
@@ -135,7 +146,7 @@ def save_checkpoint(args, state, is_best):
 
 
 class AverageMeter(object):
-    
+
     def __init__(self, name, fmt=':f'):
         self.name = name
         self.fmt = fmt
@@ -159,7 +170,6 @@ class AverageMeter(object):
 
 
 def accuracy(output, target, topk=(1,)):
-    
     with torch.no_grad():
         maxk = max(topk)
         batch_size = target.size(0)
