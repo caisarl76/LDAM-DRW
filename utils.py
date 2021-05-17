@@ -125,7 +125,7 @@ def prepare_folders(args):
     for folder in folders_util:
         if not os.path.exists(folder):
             print('creating folder ' + folder)
-            os.mkdir(folder)
+            os.makedirs(folder, exist_ok=True)
         else:
             if ('stage1' in args.store_name) and (args.store_name in folder):
                 if folder[-2] == '.':
@@ -136,7 +136,7 @@ def prepare_folders(args):
                         num = (int)(folder[-1]) + 1
                         folder = folder[:-1] + (str)(num)
 
-                os.mkdir(folder)
+                os.makedirs(folder, exist_ok=True)
                 print('creating folder ' + folder)
 
 
