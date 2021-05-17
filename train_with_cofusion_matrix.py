@@ -78,7 +78,7 @@ best_acc1 = 0
 def main():
     args = parser.parse_args()
     args.store_name = '_'.join(
-        ['stage1/', args.dataset, args.arch, args.loss_type, args.train_rule, args.imb_type, str(args.imb_factor),
+        ['dynamic_stage1/', args.dataset, args.arch, args.loss_type, args.train_rule, args.imb_type, str(args.imb_factor),
          args.exp_str, (str)(args.switch_prob)])
     prepare_folders(args)
     if args.seed is not None:
