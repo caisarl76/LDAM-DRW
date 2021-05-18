@@ -184,7 +184,6 @@ def main_worker(gpu, ngpus_per_node, args):
             'best_acc1': best_acc1,
             'optimizer': optimizer.state_dict(),
         }, is_best)
-        break
 
 
 def train(train_loader, model, criterion, optimizer, epoch, args, log, tf_writer):
