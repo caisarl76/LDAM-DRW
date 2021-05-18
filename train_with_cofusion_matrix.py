@@ -174,20 +174,6 @@ def main_worker(gpu, ngpus_per_node, args):
     args.cls_num_list = cls_num_list
     h_to_tail = head_to_class[args.dataset]
 
-    # cf_name = '_'.join(
-    #     [args.dataset, args.arch, args.loss_type, args.train_rule, args.imb_type, str(args.imb_factor), args.exp_str])
-    #
-    # f_name = os.path.join('./data', cf_name) + '.npy'
-    # print(f_name)
-    # with open(f_name, 'rb') as f:
-    #     cf_mat = np.load((f.name))
-    #
-    # dat_len = len(cf_mat[0])
-    # max_idx = int(dat_len * 0.7)
-    #
-    # cf_mat = cf_mat[max_idx:, max_idx:]
-    # cf_mat = np.argmax(cf_mat, axis=1)
-    # cf_mat = cf_mat + max_idx
     train_sampler = None
 
     train_loader = torch.utils.data.DataLoader(
