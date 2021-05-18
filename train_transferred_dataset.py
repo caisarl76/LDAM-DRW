@@ -35,7 +35,6 @@ parser.add_argument('--train_rule', default='None', type=str, help='data samplin
 parser.add_argument('--rand_number', default=0, type=int, help='fix random number for data sampling')
 parser.add_argument('--exp_str', default='0', type=str, help='number to indicate which experiment it is')
 
-
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=200, type=int, metavar='N',
@@ -53,11 +52,16 @@ parser.add_argument('--wd', '--weight-decay', default=2e-4, type=float,
 parser.add_argument('-p', '--print-freq', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 
+parser.add_argument('--seed', default=None, type=int,
+                    help='seed for initializing training. ')
 parser.add_argument('--gpu', default=None, type=int,
                     help='GPU id to use.')
 parser.add_argument('--switch-prob', type=float, default=0.1)
 parser.add_argument('--root_log', type=str, default='log/stable_stage1')
 parser.add_argument('--root_model', type=str, default='checkpoint/stable_stage1')
+parser.add_argument('--t_h_file', type=str, default='data/cifar10_resnet32_CE_None_exp_0.1_0.pickle')
+parser.add_argument('--change-portion', type=float, default=0.1)
+
 best_acc1 = 0
 
 
@@ -93,8 +97,8 @@ def main_worker(gpu, ngpus_per_node, args):
     # create model
     print("=> creating model '{}'".format(args.arch))
     num_classes = 100 if args.dataset == 'cifar100' else 10
-    use_norm = True if 'LDAM' in args.model_path else False
-    model = models.__dict__[args.arch](num_classes=num_classes, use_norm=use_norm)
+    # use_norm = True if 'LDAM' in args.model_path else False
+    model = models.__dict__[args.arch](num_classes=num_classes, use_norm=False)
 
     if args.gpu is not None:
         torch.cuda.set_device(args.gpu)
@@ -126,12 +130,14 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.dataset == 'cifar10':
         train_dataset = TRANSCIFAR10(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
                                      rand_number=args.rand_number, train=True, download=True,
-                                     transform=transform_train)
+                                     transform=transform_train, t_h_file=args.t_h_file,
+                                     change_portion=args.change_portion)
         val_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_val)
     elif args.dataset == 'cifar100':
         train_dataset = TRANSCIFAR100(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
                                       rand_number=args.rand_number, train=True, download=True,
-                                      transform=transform_train)
+                                      transform=transform_train, t_h_file=args.t_h_file,
+                                      change_portion=args.change_portion)
         val_dataset = datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_val)
     else:
         warnings.warn('Dataset is not listed')
@@ -156,7 +162,7 @@ def main_worker(gpu, ngpus_per_node, args):
     with open(os.path.join(args.root_log, args.store_name, 'args.txt'), 'w') as f:
         f.write(str(args))
     tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name))
-    for epoch in range(args.start_epoch, args.epochs):
+    for epoch in range(args.epochs):
         adjust_learning_rate(optimizer, epoch, args)
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, args, log_training, tf_writer)
@@ -178,6 +184,7 @@ def main_worker(gpu, ngpus_per_node, args):
             'best_acc1': best_acc1,
             'optimizer': optimizer.state_dict(),
         }, is_best)
+        break
 
 
 def train(train_loader, model, criterion, optimizer, epoch, args, log, tf_writer):
@@ -318,3 +325,7 @@ def adjust_learning_rate(optimizer, epoch, args):
         lr = args.lr
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
+
+
+if __name__ == '__main__':
+    main()
