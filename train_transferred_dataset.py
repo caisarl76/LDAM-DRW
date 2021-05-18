@@ -16,26 +16,43 @@ from utils import *
 from imbalance_cifar import IMBALANCECIFAR10, IMBALANCECIFAR100
 from trasferr_cifar import TRANSCIFAR10, TRANSCIFAR100
 
-
 head_to_class = {'cifar10': {7: 4, 8: 0, 9: 0}, 'cifar100': {78: 18, 79: 44, 88: 50, 89: 8, 98: 2, 99: 61}}
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
                      and callable(models.__dict__[name]))
 
 parser = argparse.ArgumentParser(description='PyTorch Cifar Training')
-parser.add_argument('--model-path', default='', type=str, metavar='PATH',
-                    help='path to latest checkpoint (default: none)')
 parser.add_argument('--dataset', default='cifar10', help='dataset setting')
 parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet32',
                     choices=model_names,
                     help='model architecture: ' +
                          ' | '.join(model_names) +
                          ' (default: resnet32)')
+parser.add_argument('--loss_type', default="CE", type=str, help='loss type')
+parser.add_argument('--imb_type', default="exp", type=str, help='imbalance type')
+parser.add_argument('--imb_factor', default=0.01, type=float, help='imbalance factor')
+parser.add_argument('--train_rule', default='None', type=str, help='data sampling strategy for train loader')
+parser.add_argument('--rand_number', default=0, type=int, help='fix random number for data sampling')
+parser.add_argument('--exp_str', default='0', type=str, help='number to indicate which experiment it is')
+
+
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
+parser.add_argument('--epochs', default=200, type=int, metavar='N',
+                    help='number of total epochs to run')
 parser.add_argument('-b', '--batch-size', default=128, type=int,
                     metavar='N',
                     help='mini-batch size')
+parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
+                    metavar='LR', help='initial learning rate', dest='lr')
+parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
+                    help='momentum')
+parser.add_argument('--wd', '--weight-decay', default=2e-4, type=float,
+                    metavar='W', help='weight decay (default: 1e-4)',
+                    dest='weight_decay')
+parser.add_argument('-p', '--print-freq', default=10, type=int,
+                    metavar='N', help='print frequency (default: 10)')
+
 parser.add_argument('--gpu', default=None, type=int,
                     help='GPU id to use.')
 parser.add_argument('--switch-prob', type=float, default=0.1)
@@ -220,6 +237,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args, log, tf_writer
     tf_writer.add_scalar('acc/train_top5', top5.avg, epoch)
     tf_writer.add_scalar('lr', optimizer.param_groups[-1]['lr'], epoch)
 
+
 def validate(val_loader, model, criterion, epoch, args, log=None, tf_writer=None, flag='val'):
     batch_time = AverageMeter('Time', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
@@ -271,7 +289,7 @@ def validate(val_loader, model, criterion, epoch, args, log=None, tf_writer=None
         output = ('{flag} Results: Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f} Loss {loss.avg:.5f}'
                   .format(flag=flag, top1=top1, top5=top5, loss=losses))
         out_cls_acc = '%s Class Accuracy: %s' % (
-        flag, (np.array2string(cls_acc, separator=',', formatter={'float_kind': lambda x: "%.3f" % x})))
+            flag, (np.array2string(cls_acc, separator=',', formatter={'float_kind': lambda x: "%.3f" % x})))
         print(output)
         print(out_cls_acc)
         if log is not None:
@@ -285,6 +303,7 @@ def validate(val_loader, model, criterion, epoch, args, log=None, tf_writer=None
         tf_writer.add_scalars('acc/test_' + flag + '_cls_acc', {str(i): x for i, x in enumerate(cls_acc)}, epoch)
 
     return top1.avg
+
 
 def adjust_learning_rate(optimizer, epoch, args):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
