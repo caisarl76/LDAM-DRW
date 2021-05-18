@@ -4,18 +4,43 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import numpy as np
 import pickle as pkl
+import os
+from os.path import join
+head_to_class = {'cifar10': {7:4, 8:0, 9:0},'cifar100':{78:18, 79:44, 88:50, 89:8, 98:2, 99:61}}
 
-
-class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
+class TRANSCIFAR10(torchvision.datasets.CIFAR10):
     cls_num = 10
 
     def __init__(self, root, imb_type='exp', imb_factor=0.01, rand_number=0, train=True,
-                 transform=None, target_transform=None, download=False, one_class=-1):
-        super(IMBALANCECIFAR10, self).__init__(root, train, transform, target_transform, download)
-        self.one_class = one_class
+                 transform=None, target_transform=None, download=False, change_portion=0.1, t_h_file=None):
+        super(TRANSCIFAR10, self).__init__(root, train, transform, target_transform, download)
         np.random.seed(rand_number)
         img_num_list = self.get_img_num_per_cls(self.cls_num, imb_type, imb_factor)
-        self.gen_imbalanced_data(img_num_list)
+
+        new_data, new_targets = self.gen_tail_class_first(img_num_list, t_h_file, change_portion=change_portion)
+
+        self.gen_imbalanced_data(new_data, new_targets, img_num_list)
+
+    def gen_tail_class_first(self, img_num_list, t_h_file, change_portion=0.1):
+        new_data = []
+        new_targets = []
+        with open(t_h_file, 'rb') as f:
+            t_h_list = pkl.load(f)
+
+        for item in t_h_list:
+            tail = item['tail']
+            head = item['head']
+            idx = item['samples'][0]
+
+            num_to_change = (int)(np.round(img_num_list[head] * change_portion))
+            head_idx = [i for i, item in enumerate(self.targets) if item == head]
+            selec_idx = idx[:num_to_change].astype(np.int64)
+            new_data.append(self.data[selec_idx, ...])
+            new_targets.extend([tail, ] * num_to_change)
+            for idx in selec_idx:
+                self.targets[idx] = tail
+
+        return new_data, new_targets
 
     def get_img_num_per_cls(self, cls_num, imb_type, imb_factor):
         img_max = len(self.data) / cls_num
@@ -33,35 +58,22 @@ class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
             img_num_per_cls.extend([int(img_max)] * cls_num)
         return img_num_per_cls
 
-    def gen_imbalanced_data(self, img_num_per_cls):
-        new_data = []
-        new_targets = []
+    def gen_imbalanced_data(self, new_data, new_targets, img_num_per_cls):
         targets_np = np.array(self.targets, dtype=np.int64)
         classes = np.unique(targets_np)
         # np.random.shuffle(classes)
         self.num_per_cls_dict = dict()
-        if self.one_class != -1:
-            the_img_num = img_num_per_cls[self.one_class]
-            self.num_per_cls_dict[self.one_class] = the_img_num
-            idx = np.where(targets_np == self.one_class)[0]
+
+        for the_class, the_img_num in zip(classes, img_num_per_cls):
+            self.num_per_cls_dict[the_class] = the_img_num
+            idx = np.where(targets_np == the_class)[0]
             np.random.shuffle(idx)
-            self.selec_idx = idx[:the_img_num]
-            new_data.append(self.data[self.selec_idx, ...])
-            new_targets.extend([self.one_class, ] * the_img_num)
-            new_data = np.vstack(new_data)
-            self.data = new_data
-            self.targets = new_targets
-        else:
-            for the_class, the_img_num in zip(classes, img_num_per_cls):
-                self.num_per_cls_dict[the_class] = the_img_num
-                idx = np.where(targets_np == the_class)[0]
-                np.random.shuffle(idx)
-                selec_idx = idx[:the_img_num]
-                new_data.append(self.data[selec_idx, ...])
-                new_targets.extend([the_class, ] * the_img_num)
-            new_data = np.vstack(new_data)
-            self.data = new_data
-            self.targets = new_targets
+            selec_idx = idx[:the_img_num]
+            new_data.append(self.data[selec_idx, ...])
+            new_targets.extend([the_class, ] * the_img_num)
+        new_data = np.vstack(new_data)
+        self.data = new_data
+        self.targets = new_targets
 
     def get_cls_num_list(self):
         cls_num_list = []
@@ -70,7 +82,7 @@ class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
         return cls_num_list
 
 
-class IMBALANCECIFAR100(IMBALANCECIFAR10):
+class TRANSCIFAR100(TRANSCIFAR10):
     """`CIFAR100 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
     This is a subclass of the `CIFAR10` Dataset.
     """
@@ -94,22 +106,17 @@ class IMBALANCECIFAR100(IMBALANCECIFAR10):
 
 
 if __name__ == '__main__':
-
     transform = transforms.Compose(
         [transforms.ToTensor(),
          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    head_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
-    # head_dataset.
-    trainset = IMBALANCECIFAR10(root='./data', train=True,
-                                 download=True, transform=transform)
+
+    trainset = TRANSCIFAR10(root='./data', train=True,
+                                download=True, transform=transform, change_portion=0.4,
+                                t_h_file='./data/cifar10_resnet32_CE_None_exp_0.1_0.pickle')
     with open('./data/cifar10_resnet32_CE_None_exp_0.1_0.pickle', 'rb') as f:
         t_h_list = pkl.load(f)
-    head = t_h_list[0]['head']
-    tail = t_h_list[0]['tail']
-    samples = t_h_list[0]['samples']
-
-
 
     trainloader = iter(trainset)
     data, label = next(trainloader)
+    print(data.shape, label)
 #    import pdb; pdb.set_trace()
