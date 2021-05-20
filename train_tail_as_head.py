@@ -14,6 +14,11 @@ import models
 from train_utils.train_utils import *
 from dataset.imbalance_cifar import IMBALANCECIFAR10, IMBALANCECIFAR100
 
+transform_val = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+])
+
 head_to_class = {'cifar10': {8: 0}, 'cifar100': {78: 18, 79: 44, 88: 50, 89: 8, 98: 2, 99: 61}}
 
 model_names = sorted(name for name in models.__dict__
@@ -114,11 +119,11 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.dataset == 'cifar10':
         train_dataset = IMBALANCECIFAR10(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
                                          rand_number=args.rand_number, train=True, download=True, t_as_h=True)
-        val_dataset = datasets.CIFAR10(root='./data', train=False, download=True)
+        val_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_val)
     elif args.dataset == 'cifar100':
         train_dataset = IMBALANCECIFAR100(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
                                           rand_number=args.rand_number, train=True, download=True, t_as_h=True)
-        val_dataset = datasets.CIFAR100(root='./data', train=False, download=True)
+        val_dataset = datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_val)
     else:
         warnings.warn('Dataset is not listed')
         return

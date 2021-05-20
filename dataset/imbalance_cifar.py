@@ -126,4 +126,5 @@ if __name__ == '__main__':
 
     trainloader = iter(trainset)
     data, label = next(trainloader)
+    print(type(data), type(label))
 #    import pdb; pdb.set_trace()
