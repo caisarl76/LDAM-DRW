@@ -57,8 +57,8 @@ parser.add_argument('--seed', default=None, type=int,
 parser.add_argument('--gpu', default=None, type=int,
                     help='GPU id to use.')
 parser.add_argument('--switch-prob', type=float, default=0.1)
-parser.add_argument('--root_log', type=str, default='log/stable_stage1')
-parser.add_argument('--root_model', type=str, default='checkpoint/stable_stage1')
+parser.add_argument('--root_log', type=str, default='log/0520_stable_stage1')
+parser.add_argument('--root_model', type=str, default='checkpoint/0520_stable_stage1')
 parser.add_argument('--t_h_file', type=str, default='data/cifar10_resnet32_CE_None_exp_0.1_0.pickle')
 parser.add_argument('--change-portion', type=float, default=0.1)
 
