@@ -29,6 +29,7 @@ class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
             transform = transform_train
         else:
             transform = transform_val
+
         super(IMBALANCECIFAR10, self).__init__(root, train, transform, target_transform, download)
         self.one_class = one_class
         self.t_as_h = t_as_h
@@ -121,7 +122,7 @@ class IMBALANCECIFAR100(IMBALANCECIFAR10):
 if __name__ == '__main__':
     # head_dataset = datasets.CIFAR10(root='./data', train=False, download=True)
     # head_dataset.
-    trainset = IMBALANCECIFAR10(root='./data', train=True, download=True, t_as_h=True)
+    trainset = IMBALANCECIFAR10(root='./data', train=False, download=True, t_as_h=True)
 
     trainloader = iter(trainset)
     data, label = next(trainloader)
