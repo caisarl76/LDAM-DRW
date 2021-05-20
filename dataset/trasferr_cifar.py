@@ -9,11 +9,27 @@ from os.path import join
 head_to_class = {'cifar10': {7:4, 8:0, 9:0},'cifar100':{78:18, 79:44, 88:50, 89:8, 98:2, 99:61}}
 new_h_to = {'cifar10': {7:4, 8:0},'cifar100':{78:18, 79:44, 88:50, 89:8, 98:2, 99:61}}
 
+transform_train = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+
+transform_val = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+
 class TRANSCIFAR10(torchvision.datasets.CIFAR10):
     cls_num = 10
 
     def __init__(self, root, imb_type='exp', imb_factor=0.01, rand_number=0, train=True,
-                 transform=None, target_transform=None, download=False, change_portion=0.1, t_h_file=None):
+                 target_transform=None, download=False, change_portion=0.1, t_h_file=None):
+        if train:
+            transform = transform_train
+        else:
+            transform = transform_val
         super(TRANSCIFAR10, self).__init__(root, train, transform, target_transform, download)
         np.random.seed(rand_number)
         img_num_list = self.get_img_num_per_cls(self.cls_num, imb_type, imb_factor)
@@ -114,9 +130,9 @@ if __name__ == '__main__':
          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
     trainset = TRANSCIFAR10(root='./data', train=True,
-                                download=True, transform=transform, change_portion=0.1,
-                                t_h_file='./data/cifar10_resnet32_CE_None_exp_0.1_0.pickle')
-    with open('./data/new_cifar10_resnet32_CE_None_exp_0.1_0.pickle', 'rb') as f:
+                            download=True, transform=transform, change_portion=0.1,
+                            t_h_file='../data/cifar10_resnet32_CE_None_exp_0.1_0.pickle')
+    with open('../data/new_cifar10_resnet32_CE_None_exp_0.1_0.pickle', 'rb') as f:
         t_h_list = pkl.load(f)
 
     trainloader = iter(trainset)

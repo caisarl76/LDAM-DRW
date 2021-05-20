@@ -9,7 +9,7 @@ import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import models
-from utils import *
+from train_utils import *
 import matplotlib.pyplot as plt
 matplotlib.use( 'tkagg' )
 

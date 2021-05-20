@@ -12,9 +12,10 @@ from tensorboardX import SummaryWriter
 
 import models
 from train_utils.train_utils import *
-from dataset.trasferr_cifar import TRANSCIFAR10, TRANSCIFAR100
+from dataset.imbalance_cifar import IMBALANCECIFAR10, IMBALANCECIFAR100
 
 head_to_class = {'cifar10': {8: 0}, 'cifar100': {78: 18, 79: 44, 88: 50, 89: 8, 98: 2, 99: 61}}
+
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
                      and callable(models.__dict__[name]))
@@ -47,6 +48,7 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
 parser.add_argument('--wd', '--weight-decay', default=2e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)',
                     dest='weight_decay')
+
 parser.add_argument('-p', '--print-freq', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 
@@ -54,11 +56,9 @@ parser.add_argument('--seed', default=None, type=int,
                     help='seed for initializing training. ')
 parser.add_argument('--gpu', default=None, type=int,
                     help='GPU id to use.')
-parser.add_argument('--switch-prob', type=float, default=0.1)
-parser.add_argument('--root_log', type=str, default='log/0521_stable_stage1')
-parser.add_argument('--root_model', type=str, default='checkpoint/0521_stable_stage1')
-parser.add_argument('--t_h_file', type=str, default='data/cifar10_resnet32_CE_None_exp_0.1_0.pickle')
-parser.add_argument('--change-portion', type=float, default=0.1)
+
+parser.add_argument('--root_log', type=str, default='log/train_t_as_h')
+parser.add_argument('--root_model', type=str, default='checkpoint/train_t_as_h')
 
 best_acc1 = 0
 
@@ -82,6 +82,7 @@ def main():
     if args.gpu is not None:
         warnings.warn('You have chosen a specific GPU. This will completely '
                       'disable data parallelism.')
+
     ngpus_per_node = torch.cuda.device_count()
     main_worker(args.gpu, ngpus_per_node, args)
 
@@ -113,49 +114,41 @@ def main_worker(gpu, ngpus_per_node, args):
 
     # Data loading code
 
-    transform_train = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    ])
-
-    transform_val = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    ])
-
     if args.dataset == 'cifar10':
-        train_dataset = TRANSCIFAR10(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
-                                     rand_number=args.rand_number, train=True, download=True,
-                                     transform=transform_train, t_h_file=args.t_h_file,
-                                     change_portion=args.change_portion)
-        val_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_val)
+        train_dataset = IMBALANCECIFAR10(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
+                                         rand_number=args.rand_number, train=True, download=True, t_as_h=True)
+        val_dataset = datasets.CIFAR10(root='./data', train=False, download=True)
     elif args.dataset == 'cifar100':
-        train_dataset = TRANSCIFAR100(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
-                                      rand_number=args.rand_number, train=True, download=True,
-                                      transform=transform_train, t_h_file=args.t_h_file,
-                                      change_portion=args.change_portion)
-        val_dataset = datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_val)
+        train_dataset = IMBALANCECIFAR100(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
+                                          rand_number=args.rand_number, train=True, download=True, t_as_h=True)
+        val_dataset = datasets.CIFAR100(root='./data', train=False, download=True)
     else:
         warnings.warn('Dataset is not listed')
         return
+
     cls_num_list = train_dataset.get_cls_num_list()
     print('cls num list:')
     print(cls_num_list)
     args.cls_num_list = cls_num_list
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
-                                               num_workers=args.workers, pin_memory=True)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=100, shuffle=False, num_workers=args.workers,
-                                             pin_memory=True)
+    train_sampler = None
+
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
+        num_workers=args.workers, pin_memory=True, sampler=train_sampler)
+
+    val_loader = torch.utils.data.DataLoader(
+        val_dataset, batch_size=100, shuffle=False,
+        num_workers=args.workers, pin_memory=True)
 
     # init log for training
     log_training = open(os.path.join(args.root_log, args.store_name, 'log_train.csv'), 'w')
     log_testing = open(os.path.join(args.root_log, args.store_name, 'log_test.csv'), 'w')
     with open(os.path.join(args.root_log, args.store_name, 'args.txt'), 'w') as f:
         f.write(str(args))
+
     tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name))
+
     for epoch in range(args.epochs):
         adjust_learning_rate(optimizer, epoch, args)
         # train for one epoch

@@ -3,23 +3,19 @@ import os
 import random
 import time
 import warnings
-import sys
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim
-import torch.multiprocessing as mp
 import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import models
 from tensorboardX import SummaryWriter
 from sklearn.metrics import confusion_matrix
-from utils import *
-from imbalance_cifar import IMBALANCECIFAR10, IMBALANCECIFAR100
-from losses import LDAMLoss, FocalLoss
+from dataset.imbalance_cifar import IMBALANCECIFAR10, IMBALANCECIFAR100
 
 head_to_class = {'cifar10': {7:4, 8:0, 9:0},'cifar100':{78:18, 79:44, 88:50, 89:8, 98:2, 99:61}}
 

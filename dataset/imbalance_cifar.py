@@ -5,16 +5,37 @@ import torchvision.datasets as datasets
 import numpy as np
 import pickle as pkl
 
+transform_train = transforms.Compose([
+    transforms.RandomCrop(32, padding=4),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+])
+
+transform_val = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+])
+
+head_to_class = {'cifar10': {8: 0}, 'cifar100': {78: 18, 79: 44, 88: 50, 89: 8, 98: 2, 99: 61}}
+
 
 class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
     cls_num = 10
 
     def __init__(self, root, imb_type='exp', imb_factor=0.01, rand_number=0, train=True,
-                 transform=None, target_transform=None, download=False, one_class=-1):
+                 target_transform=None, download=False, one_class=-1, t_as_h=False):
+        if train:
+            transform = transform_train
+        else:
+            transform = transform_val
         super(IMBALANCECIFAR10, self).__init__(root, train, transform, target_transform, download)
         self.one_class = one_class
+        self.t_as_h = t_as_h
+
         np.random.seed(rand_number)
         img_num_list = self.get_img_num_per_cls(self.cls_num, imb_type, imb_factor)
+        self.head_to_class = head_to_class['cifar%d' % (len(img_num_list))]
         self.gen_imbalanced_data(img_num_list)
 
     def get_img_num_per_cls(self, cls_num, imb_type, imb_factor):
@@ -52,13 +73,17 @@ class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
             self.data = new_data
             self.targets = new_targets
         else:
+
             for the_class, the_img_num in zip(classes, img_num_per_cls):
                 self.num_per_cls_dict[the_class] = the_img_num
                 idx = np.where(targets_np == the_class)[0]
                 np.random.shuffle(idx)
                 selec_idx = idx[:the_img_num]
                 new_data.append(self.data[selec_idx, ...])
-                new_targets.extend([the_class, ] * the_img_num)
+                if (self.t_as_h) and (the_class in self.head_to_class.keys()):
+                    new_targets.extend([self.head_to_class[the_class], ] * the_img_num)
+                else:
+                    new_targets.extend([the_class, ] * the_img_num)
             new_data = np.vstack(new_data)
             self.data = new_data
             self.targets = new_targets
@@ -94,21 +119,9 @@ class IMBALANCECIFAR100(IMBALANCECIFAR10):
 
 
 if __name__ == '__main__':
-
-    transform = transforms.Compose(
-        [transforms.ToTensor(),
-         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    head_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+    # head_dataset = datasets.CIFAR10(root='./data', train=False, download=True)
     # head_dataset.
-    trainset = IMBALANCECIFAR10(root='./data', train=True,
-                                 download=True, transform=transform)
-    with open('./data/cifar10_resnet32_CE_None_exp_0.1_0.pickle', 'rb') as f:
-        t_h_list = pkl.load(f)
-    head = t_h_list[0]['head']
-    tail = t_h_list[0]['tail']
-    samples = t_h_list[0]['samples']
-
-
+    trainset = IMBALANCECIFAR10(root='./data', train=True, download=True, t_as_h=True)
 
     trainloader = iter(trainset)
     data, label = next(trainloader)
