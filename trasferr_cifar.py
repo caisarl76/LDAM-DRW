@@ -32,6 +32,7 @@ class TRANSCIFAR10(torchvision.datasets.CIFAR10):
             tail = item['tail']
             head = item['head']
             idx = item['samples'][0]
+            print(head, tail, len(idx))
 
             num_to_change = (int)(np.round(img_num_list[head] * change_portion))
             head_idx = [i for i, item in enumerate(self.targets) if item == head]
@@ -72,6 +73,7 @@ class TRANSCIFAR10(torchvision.datasets.CIFAR10):
             selec_idx = idx[:the_img_num]
             new_data.append(self.data[selec_idx, ...])
             new_targets.extend([the_class, ] * the_img_num)
+            print(the_class, the_img_num)
         new_data = np.vstack(new_data)
         self.data = new_data
         self.targets = new_targets
@@ -112,9 +114,9 @@ if __name__ == '__main__':
          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
     trainset = TRANSCIFAR10(root='./data', train=True,
-                                download=True, transform=transform, change_portion=0.4,
+                                download=True, transform=transform, change_portion=0.1,
                                 t_h_file='./data/cifar10_resnet32_CE_None_exp_0.1_0.pickle')
-    with open('./data/cifar10_resnet32_CE_None_exp_0.1_0.pickle', 'rb') as f:
+    with open('./data/new_cifar10_resnet32_CE_None_exp_0.1_0.pickle', 'rb') as f:
         t_h_list = pkl.load(f)
 
     trainloader = iter(trainset)
