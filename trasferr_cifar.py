@@ -7,6 +7,7 @@ import pickle as pkl
 import os
 from os.path import join
 head_to_class = {'cifar10': {7:4, 8:0, 9:0},'cifar100':{78:18, 79:44, 88:50, 89:8, 98:2, 99:61}}
+new_h_to = {'cifar10': {7:4, 8:0},'cifar100':{78:18, 79:44, 88:50, 89:8, 98:2, 99:61}}
 
 class TRANSCIFAR10(torchvision.datasets.CIFAR10):
     cls_num = 10
