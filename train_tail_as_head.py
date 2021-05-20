@@ -56,8 +56,8 @@ parser.add_argument('--seed', default=None, type=int,
 parser.add_argument('--gpu', default=None, type=int,
                     help='GPU id to use.')
 
-parser.add_argument('--root_log', type=str, default='log/train_t_as_h')
-parser.add_argument('--root_model', type=str, default='checkpoint/train_t_as_h')
+parser.add_argument('--root_log', type=str, default='log/t_as_h_stage1')
+parser.add_argument('--root_model', type=str, default='checkpoint/t_as_h_stage1')
 
 best_acc1 = 0
 
