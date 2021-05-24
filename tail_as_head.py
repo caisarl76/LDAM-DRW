@@ -185,6 +185,7 @@ def main_worker(gpu, ngpus_per_node, args):
         }, is_best)
 
     ########################################### STAGE 2 ##################################################
+    return
     print('')
     print('########################################### STAGE 2 ##################################################')
     print('')
@@ -217,7 +218,7 @@ def main_worker(gpu, ngpus_per_node, args):
         f.write(str(args))
 
     tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name, 'stage2'))
-    return
+
 
     for epoch in range(50):
         adjust_learning_rate(optimizer, epoch, args)
