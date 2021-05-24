@@ -161,7 +161,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
     tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name, 'stage1'))
 
-    for epoch in range(args.epochs-50):
+    for epoch in range(args.epochs):
         adjust_learning_rate(optimizer, epoch, args)
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, args, log_training, tf_writer)
@@ -217,6 +217,7 @@ def main_worker(gpu, ngpus_per_node, args):
         f.write(str(args))
 
     tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name, 'stage2'))
+    return
 
     for epoch in range(50):
         adjust_learning_rate(optimizer, epoch, args)
