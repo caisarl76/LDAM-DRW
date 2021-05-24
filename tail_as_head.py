@@ -161,7 +161,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
     tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name, 'stage1'))
 
-    for epoch in range(args.epochs):
+    for epoch in range(args.epochs-50):
         adjust_learning_rate(optimizer, epoch, args)
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, args, log_training, tf_writer)
@@ -206,7 +206,7 @@ def main_worker(gpu, ngpus_per_node, args):
                                              pin_memory=True)
 
     torch.nn.init.xavier_uniform_(model.linear.weight)
-    optimizer = torch.optim.SGD(model.parameters(), args.lr * 0.1,
+    optimizer = torch.optim.SGD(model.parameters(), args.lr * 0.5,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
@@ -218,7 +218,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
     tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name, 'stage2'))
 
-    for epoch in range((int)(args.epochs / 2)):
+    for epoch in range(50):
         adjust_learning_rate(optimizer, epoch, args)
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, args, log_training, tf_writer)
