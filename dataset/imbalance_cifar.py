@@ -18,13 +18,14 @@ transform_val = transforms.Compose([
 ])
 
 head_to_class = {'cifar10': {8: 0}, 'cifar100': {78: 18, 79: 44, 88: 50, 89: 8, 98: 2, 99: 61}}
+tail_to_class = {'cifar10': {0: 8}, 'cifar100': {18: 78, 44: 79, 50: 88, 8: 89, 2: 98, 61: 99}}
 
 
 class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
     cls_num = 10
 
     def __init__(self, root, imb_type='exp', imb_factor=0.01, rand_number=0, train=True,
-                 target_transform=None, download=False, one_class=-1, t_as_h=False):
+                 target_transform=None, download=False, one_class=-1, t_as_h=-1):
         if train:
             transform = transform_train
         else:
@@ -37,6 +38,7 @@ class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
         np.random.seed(rand_number)
         img_num_list = self.get_img_num_per_cls(self.cls_num, imb_type, imb_factor)
         self.head_to_class = head_to_class['cifar%d' % (len(img_num_list))]
+        self.tail_to_class = tail_to_class['cifar%d' % (len(img_num_list))]
         self.gen_imbalanced_data(img_num_list)
 
     def get_img_num_per_cls(self, cls_num, imb_type, imb_factor):
@@ -81,8 +83,12 @@ class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
                 np.random.shuffle(idx)
                 selec_idx = idx[:the_img_num]
                 new_data.append(self.data[selec_idx, ...])
-                if (self.t_as_h) and (the_class in self.head_to_class.keys()):
+                if (self.t_as_h == 0) and (the_class in self.head_to_class.keys()):
+                    print('tail to head %d -> %d'% (the_class, self.head_to_class[the_class]))
                     new_targets.extend([self.head_to_class[the_class], ] * the_img_num)
+                elif (self.t_as_h == 1) and (the_class in self.tail_to_class.keys()):
+                    print('tail to head %d -> %d'% (the_class, self.tail_to_class[the_class]))
+                    new_targets.extend([self.tail_to_class[the_class], ] * the_img_num)
                 else:
                     new_targets.extend([the_class, ] * the_img_num)
             new_data = np.vstack(new_data)

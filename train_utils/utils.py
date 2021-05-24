@@ -119,9 +119,10 @@ def plot_confusion_matrix(y_true, y_pred, classes,
 
 
 def prepare_folders(args):
-    folders_util = [args.root_log, args.root_model,
-                    os.path.join(args.root_log, args.store_name),
-                    os.path.join(args.root_model, args.store_name)]
+    folders_util = [os.path.join(args.root_log, args.store_name, 'stage1'),
+                    os.path.join(args.root_log, args.store_name, 'stage2'),
+                    os.path.join(args.root_model, args.store_name, 'stage1'),
+                    os.path.join(args.root_model, args.store_name, 'stage2')]
     for folder in folders_util:
         if not os.path.exists(folder):
             print('creating folder ' + folder)
