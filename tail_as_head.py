@@ -19,7 +19,8 @@ transform_val = transforms.Compose([
     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 ])
 
-head_to_class = {'cifar10': {8: 0}, 'cifar100': {78: 18, 79: 44, 88: 50, 89: 8, 98: 2, 99: 61}}
+head_to_class = {'cifar10': {8: 0}, 'cifar100': {88: 50, 89: 8}}
+# 'cifar100': {78: 18, 79: 44, 88: 50, 89: 8, 98: 2, 99: 61}
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
