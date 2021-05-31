@@ -213,7 +213,7 @@ def main_worker(gpu, ngpus_per_node, args):
                                              pin_memory=True)
 
     # torch.nn.init.xavier_uniform_(model.linear.weight)
-    optimizer = torch.optim.SGD(model.parameters(), args.lr * 0.5,
+    optimizer = torch.optim.SGD(model.parameters(), args.lr * 0.1,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
