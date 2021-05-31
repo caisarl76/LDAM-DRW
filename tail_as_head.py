@@ -126,19 +126,20 @@ def main_worker(gpu, ngpus_per_node, args):
 
     # Data loading code
 
+
     if args.dataset == 'cifar10':
-        train_dataset = IMBALANCECIFAR10(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
-                                         rand_number=args.rand_number, train=True, download=True, t_as_h=args.t_as_h)
+        train_dataset_2 = IMBALANCECIFAR10(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
+                                           rand_number=args.rand_number, train=True, download=True)
         val_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_val)
     elif args.dataset == 'cifar100':
-        train_dataset = IMBALANCECIFAR100(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
-                                          rand_number=args.rand_number, train=True, download=True, t_as_h=args.t_as_h)
+        train_dataset_2 = IMBALANCECIFAR100(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
+                                            rand_number=args.rand_number, train=True, download=True)
         val_dataset = datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_val)
     else:
         warnings.warn('Dataset is not listed')
         return
 
-    cls_num_list = train_dataset.get_cls_num_list()
+    cls_num_list = train_dataset_2.get_cls_num_list()
     print('cls num list:')
     print(cls_num_list)
     args.cls_num_list = cls_num_list
@@ -146,7 +147,7 @@ def main_worker(gpu, ngpus_per_node, args):
     train_sampler = None
 
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
+        train_dataset_2, batch_size=args.batch_size, shuffle=(train_sampler is None),
         num_workers=args.workers, pin_memory=True, sampler=train_sampler)
 
     val_loader = torch.utils.data.DataLoader(
@@ -189,17 +190,21 @@ def main_worker(gpu, ngpus_per_node, args):
     print('')
     print('########################################### STAGE 2 ##################################################')
     print('')
+
     if args.dataset == 'cifar10':
-        train_dataset_2 = IMBALANCECIFAR10(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
-                                           rand_number=args.rand_number, train=True, download=True)
+        train_dataset = IMBALANCECIFAR10(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
+                                         rand_number=args.rand_number, train=True, download=True, t_as_h=args.t_as_h)
+
     elif args.dataset == 'cifar100':
-        train_dataset_2 = IMBALANCECIFAR100(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
-                                            rand_number=args.rand_number, train=True, download=True)
+        train_dataset = IMBALANCECIFAR100(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
+                                          rand_number=args.rand_number, train=True, download=True, t_as_h=args.t_as_h)
+
     else:
         warnings.warn('Dataset is not listed')
         return
 
-    train_loader = torch.utils.data.DataLoader(train_dataset_2, batch_size=args.batch_size,
+
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size,
                                                shuffle=(train_sampler is None), num_workers=args.workers,
                                                pin_memory=True)
 
