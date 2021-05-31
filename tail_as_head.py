@@ -195,11 +195,11 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.dataset == 'cifar10':
         train_dataset = IMBALANCECIFAR10(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
                                          rand_number=args.rand_number, train=True, download=True, t_as_h=args.t_as_h)
-
+        val_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_val)
     elif args.dataset == 'cifar100':
         train_dataset = IMBALANCECIFAR100(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
                                           rand_number=args.rand_number, train=True, download=True, t_as_h=args.t_as_h)
-
+        val_dataset = datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_val)
     else:
         warnings.warn('Dataset is not listed')
         return
@@ -213,7 +213,7 @@ def main_worker(gpu, ngpus_per_node, args):
                                              pin_memory=True)
 
     # torch.nn.init.xavier_uniform_(model.linear.weight)
-    optimizer = torch.optim.SGD(model.parameters(), args.lr * 0.1,
+    optimizer = torch.optim.SGD(model.parameters(), args.lr * 0.01,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
