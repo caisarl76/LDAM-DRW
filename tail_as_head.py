@@ -211,7 +211,7 @@ def main_worker(gpu, ngpus_per_node, args):
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=100, shuffle=False, num_workers=args.workers,
                                              pin_memory=True)
 
-    torch.nn.init.xavier_uniform_(model.linear.weight)
+    # torch.nn.init.xavier_uniform_(model.linear.weight)
     optimizer = torch.optim.SGD(model.parameters(), args.lr * 0.5,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
