@@ -51,7 +51,7 @@ parser.add_argument('-b', '--batch-size', default=128, type=int,
                     metavar='N',
                     help='mini-batch size')
 parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
-                    metavar='LR', help='initial learning rate', dest='lr')
+                    metavar='LR', help='initial learning rate', dest='lr', nargs='+')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--wd', '--weight-decay', default=2e-4, type=float,
@@ -113,7 +113,7 @@ def main_worker(gpu, ngpus_per_node, args):
         # DataParallel will divide and allocate batch_size to all available GPUs
         model = torch.nn.DataParallel(model).cuda()
 
-    optimizer = torch.optim.SGD(model.parameters(), args.lr,
+    optimizer = torch.optim.SGD(model.parameters(), args.lr[0],
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
     criterion = nn.CrossEntropyLoss().cuda(args.gpu)
@@ -207,7 +207,7 @@ def main_worker(gpu, ngpus_per_node, args):
                                              pin_memory=True)
 
     # torch.nn.init.xavier_uniform_(model.linear.weight)
-    optimizer = torch.optim.SGD(model.parameters(), args.lr * 0.01,
+    optimizer = torch.optim.SGD(model.parameters(), args.lr[1],
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
@@ -271,7 +271,7 @@ def main_worker(gpu, ngpus_per_node, args):
         val_dataset, batch_size=100, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
-    optimizer = torch.optim.SGD(model.parameters(), args.lr * 0.01,
+    optimizer = torch.optim.SGD(model.parameters(), args.lr[2],
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
     # init log for training
