@@ -158,7 +158,7 @@ def main_worker(gpu, ngpus_per_node, args):
     tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name))
 
     for epoch in range(args.epochs[0]):
-        adjust_learning_rate(optimizer, epoch, args)
+        adjust_learning_rate(optimizer, epoch, args.lr[0])
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, args, log_training, tf_writer)
         acc1 = validate(val_loader, model, criterion, epoch, args, log_testing, tf_writer)
@@ -221,7 +221,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
 
     for epoch in range(args.epochs[1]):
-        adjust_learning_rate(optimizer, epoch, args)
+        adjust_learning_rate(optimizer, epoch, args.lr[1])
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, args, log_training, tf_writer)
         acc1 = validate(val_loader, model, criterion, epoch, args, log_testing, tf_writer)
@@ -283,7 +283,7 @@ def main_worker(gpu, ngpus_per_node, args):
     tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name))
 
     for epoch in range(args.epochs[2]):
-        adjust_learning_rate(optimizer, epoch, args)
+        adjust_learning_rate(optimizer, epoch, args.lr[2])
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, args, log_training, tf_writer)
         acc1 = validate(val_loader, model, criterion, epoch, args, log_testing, tf_writer)
