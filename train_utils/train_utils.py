@@ -114,7 +114,7 @@ def validate(val_loader, model, criterion, epoch, args, log=None, tf_writer=None
         output = ('{flag} Results: Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f} Loss {loss.avg:.5f}'
                   .format(flag=flag, top1=top1, top5=top5, loss=losses))
         out_cls_acc = '%s Class Accuracy: %s' % (
-        flag, (np.array2string(cls_acc, separator=',', formatter={'float_kind': lambda x: "%.3f" % x})))
+            flag, (np.array2string(cls_acc, separator=',', formatter={'float_kind': lambda x: "%.3f" % x})))
         print(output)
         print(out_cls_acc)
         if log is not None:
@@ -130,16 +130,16 @@ def validate(val_loader, model, criterion, epoch, args, log=None, tf_writer=None
     return top1.avg
 
 
-def adjust_learning_rate(optimizer, epoch, args):
+def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
     epoch = epoch + 1
     if epoch <= 5:
-        lr = args.lr * epoch / 5
+        lr_ = lr * epoch / 5
     elif epoch > 180:
-        lr = args.lr * 0.0001
+        lr_ = lr * 0.0001
     elif epoch > 160:
-        lr = args.lr * 0.01
+        lr_ = lr * 0.01
     else:
-        lr = args.lr
+        lr_ = lr
     for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+        param_group['lr'] = lr_
