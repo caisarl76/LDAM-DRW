@@ -45,7 +45,7 @@ parser.add_argument('--exp_str', default='0', type=str, help='number to indicate
 
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=200, type=int, metavar='N',
+parser.add_argument('--epochs', default=200, type=int, metavar='N', nargs='+',
                     help='number of total epochs to run')
 parser.add_argument('-b', '--batch-size', default=128, type=int,
                     metavar='N',
@@ -74,8 +74,9 @@ best_acc1 = 0
 
 def main():
     args = parser.parse_args()
+    interval = '_'.join(list(map(str, args.epochs)))
     args.store_name = '_'.join(
-        [args.dataset, args.arch, 'CE', 'None', 'exp', str(args.imb_factor), args.exp_str, str(args.t_as_h)])
+        [args.dataset, args.arch, 'CE', 'None', 'exp', str(args.imb_factor), args.exp_str, str(args.t_as_h), 'epochs', interval])
     prepare_folders(args)
 
     if args.seed is not None:
@@ -93,13 +94,6 @@ def main():
 
     ngpus_per_node = torch.cuda.device_count()
     main_worker(args.gpu, ngpus_per_node, args)
-
-
-def stage2(gpu, args):
-    args.gpu = gpu
-    if args.gpu is not None:
-        print("Use GPU: {} for training".format(args.gpu))
-
 
 def main_worker(gpu, ngpus_per_node, args):
     global best_acc1
@@ -156,14 +150,14 @@ def main_worker(gpu, ngpus_per_node, args):
         num_workers=args.workers, pin_memory=True)
 
     # init log for training
-    log_training = open(os.path.join(args.root_log, args.store_name, 'stage1/log_train.csv'), 'w')
-    log_testing = open(os.path.join(args.root_log, args.store_name, 'stage1/log_test.csv'), 'w')
-    with open(os.path.join(args.root_log, args.store_name, 'stage1/args.txt'), 'w') as f:
+    log_training = open(os.path.join(args.root_log, args.store_name, 'st1_log_train.csv'), 'w')
+    log_testing = open(os.path.join(args.root_log, args.store_name, 'st1_log_test.csv'), 'w')
+    with open(os.path.join(args.root_log, args.store_name, 'st1_args.txt'), 'w') as f:
         f.write(str(args))
 
-    tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name, 'stage1'))
+    tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name))
 
-    for epoch in range(args.epochs):
+    for epoch in range(args.epochs[0]):
         adjust_learning_rate(optimizer, epoch, args)
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, args, log_training, tf_writer)
@@ -218,15 +212,15 @@ def main_worker(gpu, ngpus_per_node, args):
                                 weight_decay=args.weight_decay)
 
     # init log for training
-    log_training = open(os.path.join(args.root_log, args.store_name, 'stage2/log_train.csv'), 'w')
-    log_testing = open(os.path.join(args.root_log, args.store_name, 'stage2/log_test.csv'), 'w')
-    with open(os.path.join(args.root_log, args.store_name, 'stage2/args.txt'), 'w') as f:
+    log_training = open(os.path.join(args.root_log, args.store_name, 'st2_log_train.csv'), 'w')
+    log_testing = open(os.path.join(args.root_log, args.store_name, 'st2_log_test.csv'), 'w')
+    with open(os.path.join(args.root_log, args.store_name, 'st2_args.txt'), 'w') as f:
         f.write(str(args))
 
-    tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name, 'stage2'))
+    tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name))
 
 
-    for epoch in range(50):
+    for epoch in range(args.epochs[1]):
         adjust_learning_rate(optimizer, epoch, args)
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, args, log_training, tf_writer)
@@ -248,6 +242,69 @@ def main_worker(gpu, ngpus_per_node, args):
             'best_acc1': best_acc1,
             'optimizer': optimizer.state_dict(),
         }, is_best)
+
+
+    if args.dataset == 'cifar10':
+        train_dataset_2 = IMBALANCECIFAR10(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
+                                           rand_number=args.rand_number, train=True, download=True)
+        val_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_val)
+    elif args.dataset == 'cifar100':
+        train_dataset_2 = IMBALANCECIFAR100(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
+                                            rand_number=args.rand_number, train=True, download=True)
+        val_dataset = datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_val)
+    else:
+        warnings.warn('Dataset is not listed')
+        return
+
+    cls_num_list = train_dataset_2.get_cls_num_list()
+    print('cls num list:')
+    print(cls_num_list)
+    args.cls_num_list = cls_num_list
+
+    train_sampler = None
+
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset_2, batch_size=args.batch_size, shuffle=(train_sampler is None),
+        num_workers=args.workers, pin_memory=True, sampler=train_sampler)
+
+    val_loader = torch.utils.data.DataLoader(
+        val_dataset, batch_size=100, shuffle=False,
+        num_workers=args.workers, pin_memory=True)
+
+    optimizer = torch.optim.SGD(model.parameters(), args.lr * 0.01,
+                                momentum=args.momentum,
+                                weight_decay=args.weight_decay)
+    # init log for training
+    log_training = open(os.path.join(args.root_log, args.store_name, 'st3_log_train.csv'), 'w')
+    log_testing = open(os.path.join(args.root_log, args.store_name, 'st3_log_test.csv'), 'w')
+    with open(os.path.join(args.root_log, args.store_name, 'st3_args.txt'), 'w') as f:
+        f.write(str(args))
+
+    tf_writer = SummaryWriter(log_dir=os.path.join(args.root_log, args.store_name))
+
+    for epoch in range(args.epochs[2]):
+        adjust_learning_rate(optimizer, epoch, args)
+        # train for one epoch
+        train(train_loader, model, criterion, optimizer, epoch, args, log_training, tf_writer)
+        acc1 = validate(val_loader, model, criterion, epoch, args, log_testing, tf_writer)
+
+        # remember best acc@1 and save checkpoint
+        is_best = acc1 > best_acc1
+        best_acc1 = max(acc1, best_acc1)
+        tf_writer.add_scalar('acc/test_top1_best', best_acc1, epoch)
+        output_best = 'Best Prec@1: %.3f\n' % (best_acc1)
+        print(output_best)
+        log_testing.write(output_best + '\n')
+        log_testing.flush()
+
+        save_checkpoint(args, {
+            'epoch': epoch + 1,
+            'arch': args.arch,
+            'state_dict': model.state_dict(),
+            'best_acc1': best_acc1,
+            'optimizer': optimizer.state_dict(),
+        }, is_best)
+
 
 
 if __name__ == '__main__':
