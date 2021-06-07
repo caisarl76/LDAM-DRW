@@ -4,6 +4,10 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import numpy as np
 import pickle as pkl
+import pandas as pd
+import os
+import collections
+from PIL import Image
 
 transform_train = transforms.Compose([
     transforms.RandomCrop(32, padding=4),
@@ -19,6 +23,80 @@ transform_val = transforms.Compose([
 
 head_to_class = {'cifar10': {8: 0}, 'cifar100': {78: 18, 79: 44, 88: 50, 89: 8, 98: 2, 99: 61}}
 tail_to_class = {'cifar10': {0: 8}, 'cifar100': {18: 78, 44: 79, 50: 88, 8: 89, 2: 98, 61: 99}}
+
+
+class CUSTUMCIFAR100():
+    """CIFAR-100 Long Tail Dataset"""
+
+    def __init__(self, root_dir, split='train'):
+        self.file_list = pd.read_csv(os.path.join(root_dir, 'cifar100_lt/data/cifar100_lt.csv'))
+        self.root_dir = root_dir
+        self.split = split
+        if self.split == 'train':
+            self.transform = transform_train
+        else:
+            self.transform = transform_val
+        self.read_csv()
+
+    def __len__(self):
+        return len(self.img_list)
+
+    def read_csv(self):
+        if self.split == 'test':
+            self.file_list = self.file_list[-9999:]
+        else:
+            self.file_list = self.file_list[:-9999]
+
+        self.file_list.columns = ['img_paths', 'labels']
+        self.file_list.sort_values('labels')
+        self.img_list = self.file_list['img_paths']
+        label_list = self.file_list['labels']
+        self.sorted_count = collections.Counter(label_list).most_common()
+
+        self.label_idx = {label[0]: index for index, label in enumerate(self.sorted_count)}
+        self.idx_label = {i: k for i, k in enumerate(self.label_idx)}
+
+        self.file_list['class_index'] = self.file_list['labels'].map(self.label_idx)
+        self.file_list.sort_values(['class_index'], ascending=[True], inplace=True)
+        self.file_list.drop('class_index', 1, inplace=True)
+
+        self.img_list = []
+        self.label_list = []
+        if self.split == 'test':
+            self.img_list = self.file_list['img_paths'].values
+            return
+        count = 0
+        for label, total in self.sorted_count:
+            train_num = int(np.around(total * 0.8))
+            if self.split == 'train':
+                self.img_list = [*self.img_list, *self.file_list[count:count + train_num]['img_paths'].values]
+                self.label_list = [*self.label_list, *self.file_list[count:count + train_num]['labels'].values]
+            elif self.split == 'val':
+                self.img_list = [*self.img_list, *self.file_list[count + train_num:count + total]['img_paths'].values]
+                self.label_list = [*self.label_list, *self.file_list[count + train_num:count + total]['labels'].values]
+            count += total
+        self.label_list = [self.label_idx[label] for label in self.label_list]
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        img_path = os.path.join(self.root_dir, self.img_list[idx])
+        img = Image.open(img_path)
+        if self.transform:
+            img = self.transform(img)
+
+        if self.split == 'test':
+            return img, self.img_list[idx]
+
+        label = self.label_list[idx]
+
+        return img, label
+
+    def get_cls_num_list(self):
+        cls_num_list = []
+        for item in self.sorted_count:
+            cls_num_list.append(item[1])
+        return cls_num_list
 
 
 class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
@@ -84,10 +162,10 @@ class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
                 selec_idx = idx[:the_img_num]
                 new_data.append(self.data[selec_idx, ...])
                 if (self.t_as_h == 0) and (the_class in self.head_to_class.keys()):
-                    print('tail to head %d -> %d'% (the_class, self.head_to_class[the_class]))
+                    print('tail to head %d -> %d' % (the_class, self.head_to_class[the_class]))
                     new_targets.extend([self.head_to_class[the_class], ] * the_img_num)
                 elif (self.t_as_h == 1) and (the_class in self.tail_to_class.keys()):
-                    print('tail to head %d -> %d'% (the_class, self.tail_to_class[the_class]))
+                    print('tail to head %d -> %d' % (the_class, self.tail_to_class[the_class]))
                     new_targets.extend([self.tail_to_class[the_class], ] * the_img_num)
                 else:
                     new_targets.extend([the_class, ] * the_img_num)

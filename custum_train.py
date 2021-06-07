@@ -12,7 +12,7 @@ import torchvision.datasets as datasets
 import models
 from tensorboardX import SummaryWriter
 from train_utils.utils import *
-from dataset.imbalance_cifar import IMBALANCECIFAR10, IMBALANCECIFAR100
+from dataset.imbalance_cifar import IMBALANCECIFAR10, IMBALANCECIFAR100, CUSTUMCIFAR100
 from train_utils.losses import LDAMLoss, FocalLoss
 
 transform_train = transforms.Compose([
@@ -32,7 +32,8 @@ model_names = sorted(name for name in models.__dict__
                      and callable(models.__dict__[name]))
 
 parser = argparse.ArgumentParser(description='PyTorch Cifar Training')
-parser.add_argument('--dataset', default='cifar10', help='dataset setting')
+parser.add_argument('--dataset', default='cifar100', help='dataset setting')
+parser.add_argument('--data_root', default='./data', help='dataset setting')
 parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet32',
                     choices=model_names,
                     help='model architecture: ' +
@@ -72,8 +73,8 @@ parser.add_argument('--seed', default=None, type=int,
                     help='seed for initializing training. ')
 parser.add_argument('--gpu', default=None, type=int,
                     help='GPU id to use.')
-parser.add_argument('--root_log', type=str, default='log')
-parser.add_argument('--root_model', type=str, default='checkpoint')
+parser.add_argument('--root_log', type=str, default='log/custum')
+parser.add_argument('--root_model', type=str, default='checkpoint/custum')
 best_acc1 = 0
 
 
@@ -109,7 +110,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
     # create model
     print("=> creating model '{}'".format(args.arch))
-    num_classes = 100 if args.dataset == 'cifar100' else 10
+    num_classes = 100
     use_norm = True if args.loss_type == 'LDAM' else False
     model = models.__dict__[args.arch](num_classes=num_classes, use_norm=use_norm)
 
@@ -157,17 +158,10 @@ def main_worker(gpu, ngpus_per_node, args):
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
 
-    if args.dataset == 'cifar10':
-        train_dataset = IMBALANCECIFAR10(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
-                                         rand_number=args.rand_number, train=True, download=True)
-        val_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_val)
-    elif args.dataset == 'cifar100':
-        train_dataset = IMBALANCECIFAR100(root='./data', imb_type=args.imb_type, imb_factor=args.imb_factor,
-                                          rand_number=args.rand_number, train=True, download=True)
-        val_dataset = datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_val)
-    else:
-        warnings.warn('Dataset is not listed')
-        return
+    train_dataset = CUSTUMCIFAR100(root_dir=args.data_root, split='train')
+    val_dataset = CUSTUMCIFAR100(root_dir=args.data_root, split='val')
+
+
     cls_num_list = train_dataset.get_cls_num_list()
     print('cls num list:')
     print(cls_num_list)

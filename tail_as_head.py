@@ -50,7 +50,7 @@ parser.add_argument('--epochs', default=200, type=int, metavar='N', nargs='+',
 parser.add_argument('-b', '--batch-size', default=128, type=int,
                     metavar='N',
                     help='mini-batch size')
-parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
+parser.add_argument('--lr', '--learning-rate', default=[0.1, 0.001, 0.0001], type=float,
                     metavar='LR', help='initial learning rate', dest='lr', nargs='+')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
