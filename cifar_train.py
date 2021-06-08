@@ -74,6 +74,8 @@ parser.add_argument('--gpu', default=None, type=int,
                     help='GPU id to use.')
 parser.add_argument('--root_log', type=str, default='log')
 parser.add_argument('--root_model', type=str, default='checkpoint')
+parser.add_argument('--gamma', type=float, default=1.0)
+parser.add_argument('--margin', type=float, default=1.0)
 best_acc1 = 0
 
 
@@ -219,9 +221,12 @@ def main_worker(gpu, ngpus_per_node, args):
         if args.loss_type == 'CE':
             criterion = nn.CrossEntropyLoss(weight=per_cls_weights).cuda(args.gpu)
         elif args.loss_type == 'LDAM':
-            criterion = LDAMLoss(cls_num_list=cls_num_list, max_m=0.5, s=30, weight=per_cls_weights).cuda(args.gpu)
+            max_m = args.margin
+            criterion = LDAMLoss(cls_num_list=cls_num_list, max_m=max_m, s=30, weight=per_cls_weights).cuda(
+                args.gpu)
         elif args.loss_type == 'Focal':
-            criterion = FocalLoss(weight=per_cls_weights, gamma=1).cuda(args.gpu)
+            gamma = args.gamma
+            criterion = FocalLoss(weight=per_cls_weights, gamma=gamma).cuda(args.gpu)
         else:
             warnings.warn('Loss type is not listed')
             return
@@ -360,7 +365,7 @@ def validate(val_loader, model, criterion, epoch, args, log=None, tf_writer=None
         output = ('{flag} Results: Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f} Loss {loss.avg:.5f}'
                   .format(flag=flag, top1=top1, top5=top5, loss=losses))
         out_cls_acc = '%s Class Accuracy: %s' % (
-        flag, (np.array2string(cls_acc, separator=',', formatter={'float_kind': lambda x: "%.3f" % x})))
+            flag, (np.array2string(cls_acc, separator=',', formatter={'float_kind': lambda x: "%.3f" % x})))
         print(output)
         print(out_cls_acc)
         if log is not None:
